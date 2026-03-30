@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoría de Fugas | Host Up</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F8FA; --white: #FFFFFF; --blue: #1B5EF7;
+    --blue-light: #EBF0FF; --blue-mid: #DDEAFF;
+    --text: #111214; --text-soft: #6B7280; --border: #E5E9F0;
+    --red: #EF4444; --red-light: #FEF2F2;
+    --orange: #F97316; --orange-light: #FFF7ED;
+    --green: #10B981; --green-light: #ECFDF5;
+    --shadow: 0 2px 16px rgba(27,94,247,0.06);
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+
+.header { background: var(–white); border-bottom: 1px solid var(–border); padding: 18px 32px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; }
+.logo-dot { width: 10px; height: 10px; background: var(–blue); border-radius: 50%; }
+.logo-text { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+.logo-tag { font-size: 12px; color: var(–text-soft); margin-left: 4px; }
+
+.hero { max-width: 680px; margin: 0 auto; padding: 56px 24px 32px; text-align: center; }
+.hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(–blue-light); color: var(–blue); font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 20px; margin-bottom: 20px; letter-spacing: 0.3px; text-transform: uppercase; }
+.hero h1 { font-family: ‘DM Serif Display’, serif; font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin-bottom: 14px; letter-spacing: -1px; }
+.hero h1 span { color: var(–blue); }
+.hero p { font-size: 16px; color: var(–text-soft); max-width: 500px; margin: 0 auto 10px; }
+.hero-note { font-size: 13px; color: var(–text-soft); }
+
+.wrapper { max-width: 720px; margin: 0 auto; padding: 0 24px 80px; }
+
+.progress-bar-wrap { margin-bottom: 20px; }
+.progress-bar-bg { height: 3px; background: var(–border); border-radius: 2px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(–blue); border-radius: 2px; transition: width 0.5s ease; }
+
+.steps-bar { display: flex; align-items: center; margin-bottom: 28px; background: var(–white); border: 1px solid var(–border); border-radius: 12px; padding: 14px 16px; overflow-x: auto; gap: 0; }
+.step-item { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.step-num { width: 24px; height: 24px; border-radius: 50%; background: var(–border); color: var(–text-soft); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+.step-num.active { background: var(–blue); color: white; }
+.step-num.done { background: var(–green); color: white; }
+.step-label { font-size: 11px; color: var(–text-soft); font-weight: 500; white-space: nowrap; }
+.step-label.active { color: var(–blue); font-weight: 700; }
+.step-sep { flex: 1; height: 1px; background: var(–border); margin: 0 8px; min-width: 10px; }
+
+.card { background: var(–white); border: 1px solid var(–border); border-radius: 16px; padding: 32px; margin-bottom: 16px; box-shadow: var(–shadow); display: none; }
+.card.active { display: block; animation: fadeUp 0.3s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.card-icon { width: 42px; height: 42px; background: var(–blue-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 19px; }
+.card-title { font-family: ‘DM Serif Display’, serif; font-size: 21px; margin-bottom: 5px; letter-spacing: -0.4px; }
+.card-subtitle { font-size: 14px; color: var(–text-soft); margin-bottom: 26px; line-height: 1.5; }
+
+.field { margin-bottom: 18px; }
+.field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.field label span { color: var(–text-soft); font-weight: 400; }
+.field input, .field select { width: 100%; padding: 11px 14px; border: 1.5px solid var(–border); border-radius: 10px; font-size: 15px; font-family: ‘DM Sans’, sans-serif; color: var(–text); background: var(–white); transition: border-color 0.2s; outline: none; appearance: none; }
+.field input:focus, .field select:focus { border-color: var(–blue); }
+.field-hint { font-size: 12px; color: var(–text-soft); margin-top: 4px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.mc-group { margin-bottom: 22px; }
+.mc-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block; }
+.mc-label span { color: var(–text-soft); font-weight: 400; font-size: 12px; }
+.mc-opt { display: flex; align-items: flex-start; gap: 12px; border: 1.5px solid var(–border); border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all 0.18s; background: var(–white); margin-bottom: 7px; }
+.mc-opt:hover { border-color: var(–blue); background: var(–blue-light); }
+.mc-opt.selected { border-color: var(–blue); background: var(–blue-light); }
+.mc-opt.selected .mc-radio { background: var(–blue); border-color: var(–blue); }
+.mc-opt.selected .mc-radio::after { opacity: 1; }
+.mc-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(–border); flex-shrink: 0; margin-top: 2px; position: relative; transition: all 0.18s; }
+.mc-radio::after { content: ‘’; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: white; opacity: 0; transition: opacity 0.18s; }
+.mc-text { font-size: 14px; color: var(–text); line-height: 1.4; }
+.mc-sub { font-size: 12px; color: var(–text-soft); margin-top: 2px; }
+.mc-opt.multi .mc-radio { border-radius: 4px; }
+.mc-opt.multi.selected .mc-radio { background: var(–blue); border-color: var(–blue); }
+.mc-opt.multi .mc-radio::after { content: ‘✓’; font-size: 9px; font-weight: 700; top: 1px; left: 2px; width: auto; height: auto; border-radius: 0; background: transparent; color: white; }
+
+.scale-group { display: flex; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.scale-btn { width: 42px; height: 42px; border-radius: 8px; border: 1.5px solid var(–border); background: var(–white); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.18s; color: var(–text-soft); display: flex; align-items: center; justify-content: center; font-family: ‘DM Sans’, sans-serif; }
+.scale-btn:hover { border-color: var(–blue); color: var(–blue); }
+.scale-btn.selected { background: var(–blue); border-color: var(–blue); color: white; }
+.scale-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(–text-soft); }
+
+.alert-inline { background: var(–orange-light); border: 1px solid #FED7AA; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #9A3412; margin-top: -4px; margin-bottom: 16px; display: none; line-height: 1.45; }
+.alert-inline.show { display: block; }
+
+.fuga-block { background: var(–bg); border: 1px solid var(–border); border-radius: 12px; padding: 18px; margin-bottom: 14px; border-left: 3px solid var(–blue); }
+.fuga-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.fuga-emoji { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.fuga-title { font-size: 14px; font-weight: 600; }
+.fuga-desc { font-size: 13px; color: var(–text-soft); margin-top: 2px; line-height: 1.4; }
+.slider-val { display: inline-block; background: var(–blue); color: white; font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 20px; margin-bottom: 6px; }
+input[type=range] { width: 100%; -webkit-appearance: none; height: 4px; border-radius: 2px; background: var(–border); outline: none; cursor: pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(–blue); cursor: pointer; box-shadow: 0 2px 6px rgba(27,94,247,0.3); }
+.slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(–text-soft); margin-top: 5px; }
+
+.btn-primary { background: var(–blue); color: white; border: none; padding: 13px 28px; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: ‘DM Sans’, sans-serif; cursor: pointer; transition: all 0.2s; width: 100%; margin-top: 6px; }
+.btn-primary:hover { background: #1450e0; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(27,94,247,0.25); }
+.btn-back { background: none; border: 1.5px solid var(–border); color: var(–text-soft); padding: 11px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; font-family: ‘DM Sans’, sans-serif; cursor: pointer; transition: all 0.2s; margin-right: 10px; }
+.btn-back:hover { border-color: var(–blue); color: var(–blue); }
+.divider { height: 1px; background: var(–border); margin: 22px 0; }
+.section-head { font-size: 12px; font-weight: 700; color: var(–text-soft); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(–border); }
+
+.results-hero { text-align: center; padding: 24px 20px 22px; border-bottom: 1px solid var(–border); margin-bottom: 24px; }
+.results-hero .tag { display: inline-block; background: var(–red-light); color: var(–red); font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+.loss-total { font-family: ‘DM Serif Display’, serif; font-size: clamp(38px, 8vw, 62px); color: var(–red); letter-spacing: -2px; line-height: 1; margin-bottom: 5px; }
+.loss-label { font-size: 14px; color: var(–text-soft); margin-bottom: 4px; }
+.loss-annual { font-size: 17px; font-weight: 600; }
+.loss-annual span { color: var(–red); }
+
+.breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.breakdown-item { background: var(–bg); border: 1px solid var(–border); border-radius: 12px; padding: 14px; position: relative; overflow: hidden; }
+.breakdown-item::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(–blue); }
+.breakdown-item.high::before { background: var(–red); }
+.bi-label { font-size: 11px; color: var(–text-soft); margin-bottom: 3px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; }
+.bi-amount { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+.bi-amount.red { color: var(–red); }
+.bi-sublabel { font-size: 11px; color: var(–text-soft); margin-top: 2px; }
+
+.diag-score-wrap { background: var(–white); border: 1px solid var(–border); border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+.diag-score-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.diag-score-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(–text-soft); }
+.diag-score-num { font-family: ‘DM Serif Display’, serif; font-size: 28px; letter-spacing: -1px; }
+.diag-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.diag-bar-label { font-size: 12px; color: var(–text-soft); width: 150px; flex-shrink: 0; }
+.diag-bar-bg { flex: 1; height: 6px; background: var(–border); border-radius: 3px; overflow: hidden; }
+.diag-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.score-pill { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+.pill-red { background: var(–red-light); color: var(–red); }
+.pill-orange { background: var(–orange-light); color: var(–orange); }
+.pill-green { background: var(–green-light); color: var(–green); }
+
+.fuga-result { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(–border); }
+.fuga-result:last-child { border-bottom: none; }
+.fr-left { display: flex; align-items: center; gap: 9px; }
+.fr-emoji { font-size: 17px; }
+.fr-name { font-size: 13px; font-weight: 500; }
+.fr-amount { font-size: 14px; font-weight: 700; color: var(–red); }
+
+.insight-block { background: var(–blue-light); border: 1px solid var(–blue-mid); border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+.insight-block h3 { font-size: 13px; font-weight: 700; color: var(–blue); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.insight-row { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
+.insight-dot { width: 5px; height: 5px; background: var(–blue); border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+
+.cta-block { background: var(–text); border-radius: 16px; padding: 28px; text-align: center; margin-top: 6px; }
+.cta-block h3 { font-family: ‘DM Serif Display’, serif; color: white; font-size: 22px; margin-bottom: 7px; letter-spacing: -0.5px; }
+.cta-block p { color: rgba(255,255,255,0.55); font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+.btn-cta { background: var(–blue); color: white; border: none; padding: 13px 28px; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: ‘DM Sans’, sans-serif; cursor: pointer; transition: all 0.2s; display: inline-block; text-decoration: none; }
+.btn-cta:hover { background: #1450e0; }
+.cta-note { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 10px; }
+
+@media(max-width:520px) { .row-2 { grid-template-columns: 1fr; } .breakdown-grid { grid-template-columns: 1fr; } .diag-bar-label { width: 110px; } }
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-dot"></div>
+  <span class="logo-text">Host Up</span>
+  <span class="logo-tag">— Automatización para clínicas estéticas</span>
+</div>
+
+<div class="hero">
+  <div class="hero-badge">🔍 Auditoría gratuita · 5 minutos</div>
+  <h1>¿Cuánto dinero pierde<br>tu clínica <span>cada mes?</span></h1>
+  <p>Responde estas preguntas con honestidad. Los números que vas a ver te van a sorprender.</p>
+  <p class="hero-note">Sin registro · Sin spam · Solo los datos que importan</p>
+</div>
+
+<div class="wrapper">
+
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+  </div>
+
+  <div class="steps-bar">
+    <div class="step-item"><div class="step-num active" id="sn1">1</div><span class="step-label active" id="sl1">Tu clínica</span></div>
+    <div class="step-sep"></div>
+    <div class="step-item"><div class="step-num" id="sn2">2</div><span class="step-label" id="sl2">Comunicación</span></div>
+    <div class="step-sep"></div>
+    <div class="step-item"><div class="step-num" id="sn3">3</div><span class="step-label" id="sl3">Agenda</span></div>
+    <div class="step-sep"></div>
+    <div class="step-item"><div class="step-num" id="sn4">4</div><span class="step-label" id="sl4">Pacientes</span></div>
+    <div class="step-sep"></div>
+    <div class="step-item"><div class="step-num" id="sn5">5</div><span class="step-label" id="sl5">Resultados</span></div>
+  </div>
+
+  <!-- ══ PASO 1 ══ -->
+
+  <div class="card active" id="step1">
+    <div class="card-icon">🏥</div>
+    <div class="card-title">Datos de tu clínica</div>
+    <div class="card-subtitle">Necesito estos números para que el cálculo sea específico para ti y no una estimación genérica.</div>
+
+```
+<div class="row-2">
+  <div class="field">
+    <label>Citas al mes <span>(aprox.)</span></label>
+    <input type="number" id="citasMes" placeholder="Ej: 120" min="1">
+    <div class="field-hint">Todas las agendadas, no solo las que se presentan</div>
+  </div>
+  <div class="field">
+    <label>Ticket medio <span>(€)</span></label>
+    <input type="number" id="ticketMedio" placeholder="Ej: 85" min="1">
+    <div class="field-hint">Valor promedio por visita</div>
+  </div>
+</div>
+
+<div class="field">
+  <label>¿Qué tipo de tratamientos ofreces principalmente?</label>
+  <select id="tipoClinica">
+    <option value="">Selecciona...</option>
+    <option value="facial">Tratamientos faciales — botox, rellenos, hidratación</option>
+    <option value="corporal">Tratamientos corporales — depilación, moldeado</option>
+    <option value="mixta">Clínica mixta: facial + corporal</option>
+    <option value="capilar">Capilar o medicina estética</option>
+    <option value="dental">Odontología estética</option>
+  </select>
+</div>
+
+<div class="row-2">
+  <div class="field">
+    <label>¿Cuántos años lleva abierta la clínica?</label>
+    <select id="anosAbierta">
+      <option value="">Selecciona...</option>
+      <option value="nuevo">Menos de 1 año</option>
+      <option value="1-3">Entre 1 y 3 años</option>
+      <option value="3-7">Entre 3 y 7 años</option>
+      <option value="7+">Más de 7 años</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>¿Cuántas personas atienden pacientes?</label>
+    <select id="equipo">
+      <option value="">Selecciona...</option>
+      <option value="1">Solo yo</option>
+      <option value="2">2 personas</option>
+      <option value="3-5">3 a 5 personas</option>
+      <option value="5+">Más de 5</option>
+    </select>
+  </div>
+</div>
+
+<div class="field">
+  <label>¿Cómo gestionas las citas a día de hoy?</label>
+  <select id="gestionActual">
+    <option value="">Selecciona...</option>
+    <option value="manual">Manual: WhatsApp + llamadas directas</option>
+    <option value="mixto">Mix: agenda online + confirmación manual</option>
+    <option value="digital">Agenda digital pero sin automatización</option>
+    <option value="ninguno">Sin sistema claro — depende del día</option>
+  </select>
+</div>
+
+<button class="btn-primary" onclick="goStep2()">Continuar →</button>
+```
+
+  </div>
+
+  <!-- ══ PASO 2: Comunicación ══ -->
+
+  <div class="card" id="step2">
+    <div class="card-icon">💬</div>
+    <div class="card-title">Comunicación con pacientes</div>
+    <div class="card-subtitle">Estas preguntas revelan los momentos exactos donde los pacientes potenciales se escapan antes de llegar a tu silla.</div>
+
+```
+<div class="mc-group">
+  <span class="mc-label">Cuando alguien escribe a tu WhatsApp fuera de horario, ¿qué pasa?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_1','a')"><div class="mc-radio"></div><div><div class="mc-text">Recibe una respuesta automática útil al momento</div><div class="mc-sub">Con información del tratamiento y opción de agendar</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_1','b')"><div class="mc-radio"></div><div><div class="mc-text">Responde automáticamente que estamos fuera de horario</div><div class="mc-sub">Sin ofrecer nada más</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_1','c')"><div class="mc-radio"></div><div><div class="mc-text">Queda sin respuesta hasta el día siguiente</div><div class="mc-sub">O cuando alguien lo ve por la mañana</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_1','d')"><div class="mc-radio"></div><div><div class="mc-text">Depende de si tengo el móvil a mano en ese momento</div></div></div>
+</div>
+<div class="alert-inline" id="alert_p2_1">⚠️ El 67% de las personas que no reciben respuesta en menos de 1 hora contactan a otra clínica. Estás perdiendo citas cada noche sin saberlo.</div>
+
+<div class="mc-group">
+  <span class="mc-label">Cuando alguien pregunta el precio de un tratamiento, ¿cuánto tardas en responder de media?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_2','a')"><div class="mc-radio"></div><div><div class="mc-text">Menos de 5 minutos</div><div class="mc-sub">Respuesta automática o estoy muy pendiente del teléfono</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_2','b')"><div class="mc-radio"></div><div><div class="mc-text">Entre 30 minutos y 2 horas</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_2','c')"><div class="mc-radio"></div><div><div class="mc-text">Varias horas o al día siguiente</div><div class="mc-sub">Cuando tengo un momento libre entre citas</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_2','d')"><div class="mc-radio"></div><div><div class="mc-text">No tengo registro claro — respondo cuando puedo</div></div></div>
+</div>
+
+<div class="mc-group">
+  <span class="mc-label">Cuando una persona interesada recibe el precio y no confirma cita, ¿qué haces?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_3','a')"><div class="mc-radio"></div><div><div class="mc-text">Le hago seguimiento automático a las 24–48 horas</div><div class="mc-sub">Con un mensaje que resuelve posibles objeciones</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_3','b')"><div class="mc-radio"></div><div><div class="mc-text">A veces escribo manualmente si me acuerdo</div><div class="mc-sub">No hay un proceso definido</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_3','c')"><div class="mc-radio"></div><div><div class="mc-text">Nada — si quiere venir, que llame ella</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_3','d')"><div class="mc-radio"></div><div><div class="mc-text">No tengo tiempo para hacer seguimiento individual</div></div></div>
+</div>
+<div class="alert-inline" id="alert_p2_3">⚠️ El 80% de las ventas necesitan entre 5 y 12 contactos. La mayoría de clínicas abandona después del primero. Tu competencia tampoco hace seguimiento — pero alguna sí.</div>
+
+<div class="mc-group">
+  <span class="mc-label">¿Tienes algún mensaje tipo para dar información de tratamientos sin tener que escribir cada vez?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_4','a')"><div class="mc-radio"></div><div><div class="mc-text">Sí, respuestas automáticas configuradas por tratamiento</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_4','b')"><div class="mc-radio"></div><div><div class="mc-text">Tengo algunos mensajes guardados que copio y pego</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_4','c')"><div class="mc-radio"></div><div><div class="mc-text">Escribo cada respuesta desde cero</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p2_4','d')"><div class="mc-radio"></div><div><div class="mc-text">Lo responde la recepcionista como puede</div></div></div>
+</div>
+
+<div class="mc-group">
+  <span class="mc-label">¿Por qué canales recibes consultas de pacientes nuevos? <span>(puedes marcar varios)</span></span>
+  <div class="mc-opt multi" onclick="toggleMulti(this,'p2_5','wa')"><div class="mc-radio"></div><div class="mc-text">WhatsApp</div></div>
+  <div class="mc-opt multi" onclick="toggleMulti(this,'p2_5','ig')"><div class="mc-radio"></div><div class="mc-text">Instagram DMs</div></div>
+  <div class="mc-opt multi" onclick="toggleMulti(this,'p2_5','tel')"><div class="mc-radio"></div><div class="mc-text">Teléfono</div></div>
+  <div class="mc-opt multi" onclick="toggleMulti(this,'p2_5','web')"><div class="mc-radio"></div><div class="mc-text">Formulario web</div></div>
+  <div class="mc-opt multi" onclick="toggleMulti(this,'p2_5','gmb')"><div class="mc-radio"></div><div class="mc-text">Google Maps / reseñas</div></div>
+</div>
+
+<div class="divider"></div>
+<button class="btn-back" onclick="goStep(1)">← Volver</button>
+<button class="btn-primary" style="width:auto;display:inline-block;padding:12px 24px;" onclick="goStep(3)">Continuar →</button>
+```
+
+  </div>
+
+  <!-- ══ PASO 3: Agenda ══ -->
+
+  <div class="card" id="step3">
+    <div class="card-icon">📅</div>
+    <div class="card-title">Gestión de la agenda</div>
+    <div class="card-subtitle">La agenda es donde más dinero se evapora de forma invisible. Vamos a medirlo.</div>
+
+```
+<div class="mc-group">
+  <span class="mc-label">¿Envías recordatorio de cita a tus pacientes?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_1','a')"><div class="mc-radio"></div><div><div class="mc-text">Sí, de forma automática — 24h y 2h antes</div><div class="mc-sub">El sistema lo gestiona solo</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_1','b')"><div class="mc-radio"></div><div><div class="mc-text">Sí, pero lo envío manualmente cuando me acuerdo</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_1','c')"><div class="mc-radio"></div><div><div class="mc-text">Solo a algunos pacientes, no de manera sistemática</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_1','d')"><div class="mc-radio"></div><div><div class="mc-text">No enviamos recordatorio — confiamos en que vienen</div></div></div>
+</div>
+<div class="alert-inline" id="alert_p3_1">⚠️ Las clínicas sin recordatorio automático tienen entre 15% y 30% de no-shows. Con recordatorio, esa cifra baja al 5-8%. La diferencia es puro ingreso recuperado.</div>
+
+<div class="mc-group">
+  <span class="mc-label">Cuando una paciente cancela con poca antelación, ¿qué pasa con ese hueco en la agenda?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_2','a')"><div class="mc-radio"></div><div><div class="mc-text">Tenemos lista de espera — el hueco se rellena automáticamente</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_2','b')"><div class="mc-radio"></div><div><div class="mc-text">Llamo manualmente a alguien que había preguntado</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_2','c')"><div class="mc-radio"></div><div><div class="mc-text">Queda vacío — no tenemos proceso para cubrirlo</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_2','d')"><div class="mc-radio"></div><div><div class="mc-text">A veces publicamos en redes a ver si alguien quiere ese día</div></div></div>
+</div>
+
+<div class="mc-group">
+  <span class="mc-label">¿Cuántos no-shows (confirmadas pero no aparecen) tienes al mes, aproximadamente?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_3','a')"><div class="mc-radio"></div><div><div class="mc-text">Casi ninguno — 1 o 2 al mes máximo</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_3','b')"><div class="mc-radio"></div><div><div class="mc-text">Entre 3 y 7 al mes</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_3','c')"><div class="mc-radio"></div><div><div class="mc-text">Entre 8 y 15 al mes</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_3','d')"><div class="mc-radio"></div><div><div class="mc-text">Más de 15 al mes o no llevo la cuenta</div></div></div>
+</div>
+
+<div class="mc-group">
+  <span class="mc-label">¿Las pacientes pueden agendar cita por sí solas sin necesidad de llamar o escribir?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_4','a')"><div class="mc-radio"></div><div><div class="mc-text">Sí, tenemos reserva online 24h activa y funciona bien</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_4','b')"><div class="mc-radio"></div><div><div class="mc-text">Tenemos algo, pero la mayoría igual llama o escribe</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p3_4','c')"><div class="mc-radio"></div><div><div class="mc-text">No, siempre tienen que contactarnos para agendar</div></div></div>
+</div>
+
+<div class="mc-group">
+  <span class="mc-label">Del 1 al 5, ¿cómo de llena está tu agenda de media cada semana?</span>
+  <div class="scale-group" id="scaleAgenda">
+    <button class="scale-btn" onclick="selectScale('scaleAgenda',1,'agenda')">1</button>
+    <button class="scale-btn" onclick="selectScale('scaleAgenda',2,'agenda')">2</button>
+    <button class="scale-btn" onclick="selectScale('scaleAgenda',3,'agenda')">3</button>
+    <button class="scale-btn" onclick="selectScale('scaleAgenda',4,'agenda')">4</button>
+    <button class="scale-btn" onclick="selectScale('scaleAgenda',5,'agenda')">5</button>
+  </div>
+  <div class="scale-labels"><span>Muy vacía</span><span>Completamente llena</span></div>
+</div>
+
+<div class="divider"></div>
+<button class="btn-back" onclick="goStep(2)">← Volver</button>
+<button class="btn-primary" style="width:auto;display:inline-block;padding:12px 24px;" onclick="goStep(4)">Continuar →</button>
+```
+
+  </div>
+
+  <!-- ══ PASO 4: Pacientes y sliders ══ -->
+
+  <div class="card" id="step4">
+    <div class="card-icon">👥</div>
+    <div class="card-title">Base de pacientes y fidelización</div>
+    <div class="card-subtitle">Aquí está el dinero más fácil de recuperar — el de los pacientes que ya te conocen pero dejaron de venir.</div>
+
+```
+<div class="mc-group">
+  <span class="mc-label">¿Con qué frecuencia contactas a pacientes que no han venido en más de 3 meses?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_1','a')"><div class="mc-radio"></div><div><div class="mc-text">Tenemos campañas automáticas de reactivación</div><div class="mc-sub">Se envían mensajes periódicos a pacientes inactivos</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_1','b')"><div class="mc-radio"></div><div><div class="mc-text">Hacemos campañas manuales de vez en cuando</div><div class="mc-sub">En fechas especiales o cuando hay tiempo</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_1','c')"><div class="mc-radio"></div><div><div class="mc-text">Solo en momentos puntuales como Black Friday</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_1','d')"><div class="mc-radio"></div><div><div class="mc-text">No contactamos a pacientes que dejaron de venir</div></div></div>
+</div>
+<div class="alert-inline" id="alert_p4_1">⚠️ Reactivar a un paciente que ya confía en ti cuesta 5 veces menos que captar uno nuevo. Es el recurso más desaprovechado en el sector.</div>
+
+<div class="mc-group">
+  <span class="mc-label">¿Tienes registrado en algún sistema los tratamientos de cada paciente y cuándo fue su última visita?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_2','a')"><div class="mc-radio"></div><div><div class="mc-text">Sí, CRM o software específico de clínica con historial completo</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_2','b')"><div class="mc-radio"></div><div><div class="mc-text">Sí, en Excel o Google Sheets actualizado</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_2','c')"><div class="mc-radio"></div><div><div class="mc-text">En WhatsApp o en conversaciones sueltas</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_2','d')"><div class="mc-radio"></div><div><div class="mc-text">No tenemos base de datos organizada</div></div></div>
+</div>
+
+<div class="mc-group">
+  <span class="mc-label">Cuando termina una sesión, ¿qué proceso hay para que la paciente vuelva?</span>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_3','a')"><div class="mc-radio"></div><div><div class="mc-text">Se agenda la siguiente sesión antes de que se vaya</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_3','b')"><div class="mc-radio"></div><div><div class="mc-text">Le decimos cuándo debería volver, pero ella llama cuando quiere</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_3','c')"><div class="mc-radio"></div><div><div class="mc-text">Se va y esperamos a que ella contacte sola</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_3','d')"><div class="mc-radio"></div><div><div class="mc-text">Enviamos un seguimiento manual a los pocos días</div></div></div>
+</div>
+
+<div class="mc-group">
+  <span class="mc-label">¿Cuánto tiempo a la semana se va en tareas de gestión que podrían ser automáticas? <span>(responder, confirmar, recordar, seguir)</span></span>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_4','a')"><div class="mc-radio"></div><div><div class="mc-text">Menos de 2 horas</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_4','b')"><div class="mc-radio"></div><div><div class="mc-text">Entre 2 y 5 horas</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_4','c')"><div class="mc-radio"></div><div><div class="mc-text">Entre 5 y 10 horas</div></div></div>
+  <div class="mc-opt" onclick="selectOpt(this,'p4_4','d')"><div class="mc-radio"></div><div><div class="mc-text">Más de 10 horas — es un problema real en el día a día</div></div></div>
+</div>
+
+<div class="mc-group">
+  <span class="mc-label">Del 1 al 5, ¿cómo valoras la experiencia que vive una paciente desde que te contacta hasta que sale de la clínica?</span>
+  <div class="scale-group" id="scaleExp">
+    <button class="scale-btn" onclick="selectScale('scaleExp',1,'exp')">1</button>
+    <button class="scale-btn" onclick="selectScale('scaleExp',2,'exp')">2</button>
+    <button class="scale-btn" onclick="selectScale('scaleExp',3,'exp')">3</button>
+    <button class="scale-btn" onclick="selectScale('scaleExp',4,'exp')">4</button>
+    <button class="scale-btn" onclick="selectScale('scaleExp',5,'exp')">5</button>
+  </div>
+  <div class="scale-labels"><span>Muy mejorable</span><span>Excelente</span></div>
+</div>
+
+<div class="divider"></div>
+<div class="section-head">Ahora ajusta estos porcentajes a tu realidad</div>
+<p style="font-size:13px;color:var(--text-soft);margin-bottom:18px;">Sé honesta. No hay respuesta buena o mala — cuanto más ajustados estén, más exacto será el cálculo.</p>
+
+<div class="fuga-block">
+  <div class="fuga-header"><div class="fuga-emoji">📵</div><div><div class="fuga-title">Consultas que no reciben respuesta a tiempo</div><div class="fuga-desc">Mensajes que llegan fuera de horario y quedan sin respuesta durante horas.</div></div></div>
+  <div class="slider-val" id="val1">20%</div>
+  <div class="slider-wrap">
+    <input type="range" id="fuga1" min="5" max="60" value="20" step="5" oninput="updateSlider(1)">
+    <div class="slider-labels"><span>5%</span><span>60%</span></div>
+  </div>
+</div>
+
+<div class="fuga-block">
+  <div class="fuga-header"><div class="fuga-emoji">🚫</div><div><div class="fuga-title">No-shows al mes</div><div class="fuga-desc">Pacientes que confirman cita y simplemente no aparecen.</div></div></div>
+  <div class="slider-val" id="val2">15%</div>
+  <div class="slider-wrap">
+    <input type="range" id="fuga2" min="5" max="35" value="15" step="5" oninput="updateSlider(2)">
+    <div class="slider-labels"><span>5%</span><span>35%</span></div>
+  </div>
+</div>
+
+<div class="fuga-block">
+  <div class="fuga-header"><div class="fuga-emoji">😴</div><div><div class="fuga-title">Pacientes inactivos sin reactivar</div><div class="fuga-desc">% de tu base total que no ha vuelto en 3 meses o más.</div></div></div>
+  <div class="slider-val" id="val3">30%</div>
+  <div class="slider-wrap">
+    <input type="range" id="fuga3" min="10" max="70" value="30" step="5" oninput="updateSlider(3)">
+    <div class="slider-labels"><span>10%</span><span>70%</span></div>
+  </div>
+</div>
+
+<div class="fuga-block">
+  <div class="fuga-header"><div class="fuga-emoji">⏳</div><div><div class="fuga-title">Huecos vacíos en la agenda</div><div class="fuga-desc">% del tiempo disponible que queda sin ocupar cada semana.</div></div></div>
+  <div class="slider-val" id="val4">10%</div>
+  <div class="slider-wrap">
+    <input type="range" id="fuga4" min="5" max="35" value="10" step="5" oninput="updateSlider(4)">
+    <div class="slider-labels"><span>5%</span><span>35%</span></div>
+  </div>
+</div>
+
+<div class="fuga-block">
+  <div class="fuga-header"><div class="fuga-emoji">💬</div><div><div class="fuga-title">Leads que no convierten por falta de seguimiento</div><div class="fuga-desc">Personas que preguntaron, recibieron precio y desaparecieron sin que nadie les diera seguimiento.</div></div></div>
+  <div class="slider-val" id="val5">40%</div>
+  <div class="slider-wrap">
+    <input type="range" id="fuga5" min="10" max="80" value="40" step="5" oninput="updateSlider(5)">
+    <div class="slider-labels"><span>10%</span><span>80%</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<button class="btn-back" onclick="goStep(3)">← Volver</button>
+<button class="btn-primary" style="width:auto;display:inline-block;padding:12px 24px;" onclick="calcular()">Ver mi diagnóstico completo →</button>
+```
+
+  </div>
+
+  <!-- ══ PASO 5: Resultados ══ -->
+
+  <div class="card" id="step5">
+
+```
+<div class="results-hero">
+  <div class="tag">⚠️ Diagnóstico completado</div>
+  <div class="loss-total" id="totalMensual">0 €</div>
+  <div class="loss-label">en pérdidas mensuales estimadas</div>
+  <div class="loss-annual">Proyección anual: <span id="totalAnual">0 €</span></div>
+</div>
+
+<div class="breakdown-grid" id="breakdownGrid"></div>
+
+<div class="diag-score-wrap">
+  <div class="diag-score-header">
+    <span class="diag-score-title">Nivel de riesgo por área</span>
+    <span class="diag-score-num" id="scoreTotal">—</span>
+  </div>
+  <div id="scoreBarras"></div>
+</div>
+
+<div style="margin-bottom:18px;">
+  <div class="section-head">Pérdida estimada por punto de fuga</div>
+  <div id="fugasList"></div>
+</div>
+
+<div class="insight-block">
+  <h3>💡 Lo que esto significa en tu caso concreto</h3>
+  <div id="insightsList"></div>
+</div>
+
+<div id="scoreBlock" style="margin-bottom:18px;"></div>
+
+<div class="cta-block">
+  <h3>Recupera este dinero este mes</h3>
+  <p>Host Up instala el sistema completo de automatización en tu clínica en menos de 7 días. Sin cambiar cómo trabajas. Sin tecnología complicada.</p>
+  <a href="https://calendly.com" class="btn-cta" target="_blank">Reservar llamada de diagnóstico gratuita →</a>
+  <div class="cta-note">Sin compromiso · 30 minutos · Solo si tiene sentido para tu clínica</div>
+</div>
+
+<div style="text-align:center;margin-top:18px;">
+  <button class="btn-back" onclick="reiniciar()">← Calcular de nuevo</button>
+</div>
+```
+
+  </div>
+
+</div>
+
+<script>
+  const state = { citasMes:0, ticketMedio:0, fugas:[20,15,30,10,40], respuestas:{} };
+
+  function selectOpt(el, key, val) {
+    el.closest('.mc-group').querySelectorAll('.mc-opt:not(.multi)').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    state.respuestas[key] = val;
+    const alertEl = document.getElementById('alert_' + key);
+    if (alertEl) {
+      const show = (val === 'c' || val === 'd');
+      alertEl.classList.toggle('show', show);
+    }
+  }
+
+  function toggleMulti(el, key, val) {
+    el.classList.toggle('selected');
+    if (!state.respuestas[key]) state.respuestas[key] = [];
+    const idx = state.respuestas[key].indexOf(val);
+    if (idx > -1) state.respuestas[key].splice(idx, 1);
+    else state.respuestas[key].push(val);
+  }
+
+  function selectScale(groupId, val) {
+    document.querySelectorAll('#' + groupId + ' .scale-btn').forEach((b, i) => b.classList.toggle('selected', i+1 === val));
+    state.respuestas[groupId] = val;
+  }
+
+  function updateSlider(n) {
+    const v = parseInt(document.getElementById('fuga'+n).value);
+    document.getElementById('val'+n).textContent = v + '%';
+    state.fugas[n-1] = v;
+  }
+
+  function goStep(n) {
+    for (let i = 1; i <= 5; i++) {
+      const c = document.getElementById('step'+i); if(c) c.classList.remove('active');
+      const sn = document.getElementById('sn'+i); if(sn) { sn.classList.remove('active','done'); sn.textContent = i; }
+      const sl = document.getElementById('sl'+i); if(sl) sl.classList.remove('active');
+    }
+    const card = document.getElementById('step'+n); if(card) card.classList.add('active');
+    const snum = document.getElementById('sn'+n); if(snum) snum.classList.add('active');
+    const slbl = document.getElementById('sl'+n); if(slbl) slbl.classList.add('active');
+    for (let i = 1; i < n; i++) { const s = document.getElementById('sn'+i); if(s) { s.classList.add('done'); s.textContent = '✓'; } }
+    document.getElementById('progressBar').style.width = Math.min(((n-1)/4)*100, 100) + '%';
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function goStep2() {
+    const citas = parseInt(document.getElementById('citasMes').value);
+    const ticket = parseInt(document.getElementById('ticketMedio').value);
+    if (!citas || citas < 1) { alert('Introduce el número de citas al mes'); return; }
+    if (!ticket || ticket < 1) { alert('Introduce el ticket medio'); return; }
+    if (!document.getElementById('tipoClinica').value) { alert('Selecciona el tipo de clínica'); return; }
+    if (!document.getElementById('gestionActual').value) { alert('Indica cómo gestionas las citas'); return; }
+    state.citasMes = citas;
+    state.ticketMedio = ticket;
+    goStep(2);
+  }
+
+  function calcular() {
+    const { citasMes, ticketMedio, fugas, respuestas } = state;
+    const ingresoBase = citasMes * ticketMedio;
+    const perdidas = [
+      Math.round(ingresoBase * (fugas[0]/100) * 0.38),
+      Math.round(ingresoBase * (fugas[1]/100)),
+      Math.round(ingresoBase * 0.15 * (fugas[2]/100) * 0.22),
+      Math.round(ingresoBase * (fugas[3]/100)),
+      Math.round(ingresoBase * 0.28 * (fugas[4]/100) * 0.18),
+    ];
+    const totalMes = perdidas.reduce((a,b) => a+b, 0);
+    const totalAnio = totalMes * 12;
+
+    document.getElementById('totalMensual').textContent = fmt(totalMes);
+    document.getElementById('totalAnual').textContent = fmt(totalAnio);
+
+    const meta = [
+      {emoji:'📵', nombre:'Consultas sin respuesta'},
+      {emoji:'🚫', nombre:'No-shows'},
+      {emoji:'😴', nombre:'Pacientes inactivos'},
+      {emoji:'⏳', nombre:'Huecos en agenda'},
+      {emoji:'💬', nombre:'Leads sin seguimiento'},
+    ];
+    const maxIdx = perdidas.indexOf(Math.max(...perdidas));
+
+    document.getElementById('breakdownGrid').innerHTML = `
+      <div class="breakdown-item high"><div class="bi-label">Pérdida mensual</div><div class="bi-amount red">${fmt(totalMes)}</div><div class="bi-sublabel">5 puntos de fuga activos</div></div>
+      <div class="breakdown-item"><div class="bi-label">Pérdida anual</div><div class="bi-amount">${fmt(totalAnio)}</div><div class="bi-sublabel">si no cambias nada hoy</div></div>
+      <div class="breakdown-item"><div class="bi-label">Citas perdidas/mes</div><div class="bi-amount">${Math.round(totalMes/ticketMedio)}</div><div class="bi-sublabel">pacientes que se escapan</div></div>
+      <div class="breakdown-item"><div class="bi-label">Fuga crítica</div><div class="bi-amount" style="font-size:22px">${meta[maxIdx].emoji}</div><div class="bi-sublabel">${meta[maxIdx].nombre}</div></div>
+    `;
+
+    // Scores por área
+    const scoreComun    = areaScore(['p2_1','p2_2','p2_3']);
+    const scoreAgenda   = areaScore(['p3_1','p3_2','p3_3']);
+    const scorePacientes= areaScore(['p4_1','p4_2','p4_3']);
+    const scoreTot = Math.round((scoreComun + scoreAgenda + scorePacientes) / 3);
+
+    const scoreEl = document.getElementById('scoreTotal');
+    scoreEl.textContent = scoreTot + '/10';
+    scoreEl.style.color = scoreTot < 4 ? 'var(--red)' : scoreTot < 7 ? 'var(--orange)' : 'var(--green)';
+
+    const areas = [
+      {label:'Comunicación y respuesta', score: scoreComun},
+      {label:'Gestión de agenda', score: scoreAgenda},
+      {label:'Fidelización de pacientes', score: scorePacientes},
+    ];
+    document.getElementById('scoreBarras').innerHTML = areas.map(a => {
+      const col = a.score < 4 ? 'var(--red)' : a.score < 7 ? 'var(--orange)' : 'var(--green)';
+      const pill = a.score < 4 ? 'pill-red' : a.score < 7 ? 'pill-orange' : 'pill-green';
+      const lbl = a.score < 4 ? 'Crítico' : a.score < 7 ? 'Mejorable' : 'Bien';
+      return `<div class="diag-bar-row">
+        <span class="diag-bar-label">${a.label}</span>
+        <div class="diag-bar-bg"><div class="diag-bar-fill" style="width:${a.score*10}%;background:${col}"></div></div>
+        <span><span class="score-pill ${pill}">${lbl}</span></span>
+      </div>`;
+    }).join('');
+
+    document.getElementById('fugasList').innerHTML = perdidas.map((p,i) =>
+      `<div class="fuga-result"><div class="fr-left"><div class="fr-emoji">${meta[i].emoji}</div><div class="fr-name">${meta[i].nombre}</div></div><div class="fr-amount">${fmt(p)}/mes</div></div>`
+    ).join('');
+
+    // Insights
+    const ins = [
+      `Tu mayor fuga es <strong>${meta[maxIdx].nombre}</strong> — es el primer punto donde actuar.`,
+      `Recuperando el <strong>50% de estas pérdidas</strong> ingresarías <strong>${fmt(Math.round(totalMes*0.5))} más al mes</strong> sin captar un solo paciente nuevo.`,
+      `En 12 meses sin cambios habrás perdido el equivalente a <strong>${Math.round(totalAnio/ticketMedio)} tratamientos completos</strong>.`,
+    ];
+    if (respuestas['p2_1'] === 'c' || respuestas['p2_1'] === 'd') ins.push('Tu respuesta fuera de horario es urgente — estás regalando pacientes a la competencia cada noche.');
+    if (respuestas['p3_1'] === 'c' || respuestas['p3_1'] === 'd') ins.push('Sin recordatorio automático estás asumiendo un 15–30% de no-shows que son completamente evitables.');
+    if (respuestas['p4_1'] === 'c' || respuestas['p4_1'] === 'd') ins.push('Tu base de pacientes inactivos es una mina sin explotar — cuesta 5× menos reactivarlos que conseguir pacientes nuevos.');
+
+    document.getElementById('insightsList').innerHTML = ins.slice(0,5).map(i =>
+      `<div class="insight-row"><div class="insight-dot"></div><span>${i}</span></div>`
+    ).join('');
+
+    // Score block verbal
+    document.getElementById('scoreBlock').innerHTML = scoreTot < 4
+      ? `<div style="background:var(--red-light);border:1px solid #FECACA;border-radius:12px;padding:16px 18px;"><strong style="color:var(--red)">🔴 Situación crítica</strong><p style="font-size:13px;color:#991B1B;margin-top:6px;line-height:1.5">Tu clínica tiene múltiples puntos de fuga activos y sin resolver. Cada día que pasa estás dejando dinero sobre la mesa de forma innecesaria.</p></div>`
+      : scoreTot < 7
+      ? `<div style="background:var(--orange-light);border:1px solid #FED7AA;border-radius:12px;padding:16px 18px;"><strong style="color:var(--orange)">🟡 Hay margen de mejora importante</strong><p style="font-size:13px;color:#9A3412;margin-top:6px;line-height:1.5">Tienes algunas partes bien resueltas, pero hay brechas claras que están costando dinero real. Con los sistemas correctos puedes recuperar una parte significativa en poco tiempo.</p></div>`
+      : `<div style="background:var(--green-light);border:1px solid #A7F3D0;border-radius:12px;padding:16px 18px;"><strong style="color:var(--green)">🟢 Buena base — optimización posible</strong><p style="font-size:13px;color:#065F46;margin-top:6px;line-height:1.5">Tu clínica tiene buenos procesos, pero todavía hay fugas que se pueden cerrar para liberar tiempo y aumentar ingresos de forma sostenible.</p></div>`;
+
+    goStep(5);
+  }
+
+  function areaScore(keys) {
+    let pts = 0;
+    keys.forEach(k => {
+      const r = state.respuestas[k];
+      if (r === 'a') pts += 3.33;
+      else if (r === 'b') pts += 1.5;
+    });
+    return Math.min(10, Math.round(pts));
+  }
+
+  function reiniciar() {
+    ['citasMes','ticketMedio'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+    ['tipoClinica','gestionActual','anosAbierta','equipo'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+    document.querySelectorAll('.mc-opt').forEach(o => o.classList.remove('selected'));
+    document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.alert-inline').forEach(a => a.classList.remove('show'));
+    state.respuestas = {};
+    state.fugas = [20,15,30,10,40];
+    [1,2,3,4,5].forEach(n => { const el = document.getElementById('fuga'+n); if(el){ el.value=state.fugas[n-1]; updateSlider(n); }});
+    for(let i=1;i<=5;i++){const s=document.getElementById('sn'+i);if(s)s.textContent=i;}
+    goStep(1);
+  }
+
+  function fmt(n) {
+    return new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
+  }
+</script>
+
+</body>
+</html>
